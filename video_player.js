@@ -3,7 +3,7 @@
   try {
 
     console.log("player ad script added");
-    const innerDoc = document.getElementById('mediaContent');
+    const innerDoc = document.getElementById('rscpAu-MediaContainer');
     
     // Add styles
     const style = innerDoc.createElement('style');
