@@ -3,8 +3,7 @@
   try {
 
     console.log("player ad script added");
-     const outerIframe = document.getElementById('ScormContent');
-    const innerDoc = outerIframe.contentDocument || outerIframe.contentWindow.document;
+    const innerDoc = document.getElementById('mediaContent');
     
     // Add styles
     const style = innerDoc.createElement('style');
@@ -57,9 +56,7 @@
             opacity: 0.9;
         }
     `;
-    innerDoc.head.appendChild(style);
-    
-    // Create overlay
+    innerDoc.appendChild(style);
     const overlay = innerDoc.createElement('div');
     overlay.className = 'video-overlay';
     overlay.innerHTML = `
