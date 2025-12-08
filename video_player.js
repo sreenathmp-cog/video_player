@@ -2,8 +2,10 @@
 (function () {
   try {
 
-    console.log("player ad script added");
-    const innerDoc = document.getElementById('rscpAu-MediaContainer');
+console.log("player ad script added");
+const outerIframe = document.getElementById('ScormContent');
+outerIframe.addEventListener('load', function() {
+    const innerDoc = outerIframe.contentDocument || outerIframe.contentWindow.document;
     
     // Add styles
     const style = innerDoc.createElement('style');
@@ -13,7 +15,7 @@
             top: 0;
             left: 0;
             width: 50%;
-            height: calc(100% - 60px); /* Exclude controls height */
+            height: calc(100% - 60px);
             background: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 70%, transparent 100%);
             display: none;
             justify-content: flex-start;
@@ -56,7 +58,9 @@
             opacity: 0.9;
         }
     `;
-    innerDoc.appendChild(style);
+    innerDoc.head.appendChild(style);
+    
+    // Create overlay
     const overlay = innerDoc.createElement('div');
     overlay.className = 'video-overlay';
     overlay.innerHTML = `
@@ -85,7 +89,10 @@
         video.addEventListener('ended', () => overlay.classList.remove('show'));
         
         console.log('✅ Netflix-style left overlay added successfully!');
+    } else {
+        console.error('❌ Video element not found');
     }
+});
 
   } catch (e) {
     console.error('Customization failed:', e);
