@@ -1,68 +1,93 @@
 (function () {
-  const IFRAME_LOAD_TIMEOUT_MS = 10000;
-  const ELEMENT_WAIT_TIMEOUT_MS = 15000;
+  console.log("Player customization script started");
 
-  const waitForEl = (doc, selector, timeoutMs = ELEMENT_WAIT_TIMEOUT_MS) => {
+  const TIMEOUT_MS = 15000; // 15 seconds global timeout
+
+  // Helper: Wait for element using MutationObserver
+  const waitForElement = (root, selector, timeout = TIMEOUT_MS) => {
     return new Promise((resolve, reject) => {
-      const foundNow = doc.querySelector(selector);
-      if (foundNow) return resolve(foundNow);
+      const element = root.querySelector(selector);
+      if (element) {
+        resolve(element);
+        return;
+      }
 
-      const obs = new MutationObserver(() => {
-        const found = doc.querySelector(selector);
+      const observer = new MutationObserver((mutations, obs) => {
+        const found = root.querySelector(selector);
         if (found) {
           obs.disconnect();
           clearTimeout(timer);
           resolve(found);
         }
       });
-      obs.observe(doc, { childList: true, subtree: true });
+
+      observer.observe(root, {
+        childList: true,
+        subtree: true
+      });
 
       const timer = setTimeout(() => {
-        obs.disconnect();
+        observer.disconnect();
         reject(new Error(`Timeout waiting for ${selector}`));
-      }, timeoutMs);
+      }, timeout);
     });
   };
 
-  const init = async () => {
+  // Main customization logic
+  const addOverlay = async () => {
     try {
       console.log("Waiting for ScormContent iframe...");
       
-      // Wait for the iframe element itself to exist in parent DOM
-      const outerIframe = await waitForEl(document, '#ScormContent', 10000);
-      console.log("✓ Iframe element found:", outerIframe);
+      // Step 1: Wait for iframe in parent document
+      const iframe = await waitForElement(document, '#ScormContent');
+      console.log("✓ Iframe found");
 
-      // Wait for iframe to load
-      if (!outerIframe.contentDocument || outerIframe.contentDocument.readyState === 'loading') {
-        await new Promise((resolve, reject) => {
-          const onLoad = () => {
-            clearTimeout(timer);
-            resolve();
+      // Step 2: Wait for iframe content to be accessible
+      const waitForIframeContent = () => {
+        return new Promise((resolve, reject) => {
+          const checkContent = () => {
+            try {
+              const doc = iframe.contentDocument || iframe.contentWindow?.document;
+              if (doc && doc.body) {
+                resolve(doc);
+              }
+            } catch (e) {
+              // Cross-origin or not ready
+            }
           };
-          outerIframe.addEventListener('load', onLoad, { once: true });
-          
+
+          // Check immediately
+          checkContent();
+
+          // Observe iframe load
+          const observer = new MutationObserver(checkContent);
+          observer.observe(iframe, { attributes: true, attributeFilter: ['src'] });
+
+          iframe.addEventListener('load', () => {
+            observer.disconnect();
+            clearTimeout(timer);
+            checkContent();
+          });
+
           const timer = setTimeout(() => {
-            outerIframe.removeEventListener('load', onLoad);
-            console.warn('Iframe load timeout, proceeding anyway');
-            resolve();
-          }, IFRAME_LOAD_TIMEOUT_MS);
+            observer.disconnect();
+            reject(new Error('Timeout accessing iframe content'));
+          }, TIMEOUT_MS);
         });
-      }
+      };
 
-      const innerDoc = outerIframe.contentDocument || outerIframe.contentWindow.document;
-      console.log("✓ Inner document accessible:", innerDoc.readyState);
+      const innerDoc = await waitForIframeContent();
+      console.log("✓ Iframe content accessible");
 
-      // Wait for inner DOM to be ready
-      if (innerDoc.readyState === 'loading') {
-        await new Promise(res => innerDoc.addEventListener('DOMContentLoaded', res, { once: true }));
-      }
-
+      // Step 3: Wait for media container and video
       console.log("Waiting for media elements...");
-      const mediaContainer = await waitForEl(innerDoc, '#rscpAu-MediaContainer');
-      const video = await waitForEl(innerDoc, '#rscpAu-Media');
+      const [mediaContainer, video] = await Promise.all([
+        waitForElement(innerDoc, '#rscpAu-MediaContainer'),
+        waitForElement(innerDoc, '#rscpAu-Media')
+      ]);
       console.log("✓ Media elements found");
 
-      // Add styles
+      // Step 4: Add styles
       const style = innerDoc.createElement('style');
       style.textContent = `
         .video-overlay {
@@ -79,15 +104,38 @@
           pointer-events: none;
           transition: opacity 0.3s ease;
         }
-        .video-overlay.show { display: flex; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .overlay-content { text-align: left; color: white; padding: 40px; max-width: 500px; }
-        .overlay-title { font-size: 28px; font-weight: bold; margin-bottom: 16px; font-family: Arial, sans-serif; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-        .overlay-description { font-size: 16px; line-height: 1.5; font-family: Arial, sans-serif; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); opacity: 0.9; }
+        .video-overlay.show { 
+          display: flex; 
+          animation: fadeIn 0.3s ease; 
+        }
+        @keyframes fadeIn { 
+          from { opacity: 0; } 
+          to { opacity: 1; } 
+        }
+        .overlay-content { 
+          text-align: left; 
+          color: white; 
+          padding: 40px; 
+          max-width: 500px; 
+        }
+        .overlay-title { 
+          font-size: 28px; 
+          font-weight: bold; 
+          margin-bottom: 16px; 
+          font-family: Arial, sans-serif; 
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.8); 
+        }
+        .overlay-description { 
+          font-size: 16px; 
+          line-height: 1.5; 
+          font-family: Arial, sans-serif; 
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
+          opacity: 0.9; 
+        }
       `;
       innerDoc.head.appendChild(style);
 
-      // Create overlay
+      // Step 5: Create and insert overlay
       const overlay = innerDoc.createElement('div');
       overlay.className = 'video-overlay';
       overlay.innerHTML = `
@@ -104,30 +152,26 @@
       mediaContainer.style.position = 'relative';
       mediaContainer.appendChild(overlay);
 
+      // Step 6: Wire event listeners
       video.addEventListener('pause', () => overlay.classList.add('show'));
       video.addEventListener('play', () => overlay.classList.remove('show'));
       video.addEventListener('ended', () => overlay.classList.remove('show'));
 
       console.log('✅ Overlay added successfully');
 
-    } catch (err) {
-      console.error('❌ Customization failed:', err.message);
+    } catch (error) {
+      console.error('❌ Customization failed:', error.message);
     }
   };
 
-  // Start customization work asynchronously (don't block)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else {
-    init();
-  }
+  // Start customization (runs asynchronously)
+  addOverlay();
 
-  // Call the completion callback IMMEDIATELY (synchronously)
-  // This allows the player to proceed while customization runs in background
+  // Call completion callback immediately (synchronously)
   if (typeof window.rscpCustomizationCompleted === 'function') {
     window.rscpCustomizationCompleted();
-    console.log('🎬 rscpCustomizationCompleted called synchronously');
+    console.log('🎬 rscpCustomizationCompleted called');
   } else {
-    console.warn('rscpCustomizationCompleted not available on window');
+    console.warn('⚠️ rscpCustomizationCompleted not available');
   }
 })();
