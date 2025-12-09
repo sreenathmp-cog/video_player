@@ -58,14 +58,14 @@
       opacity: 0.9; 
     }
     
-    /* YouTube-style Custom Controls */
+    /* Custom Controls - Positioned at bottom left */
     .custom-video-controls {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
-      padding: 40px 12px 8px 12px;
+      bottom: 62px;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       z-index: 1000;
       pointer-events: auto;
       opacity: 0;
@@ -75,61 +75,17 @@
       opacity: 1;
     }
     
-    /* Progress Bar */
-    .video-progress-container {
-      width: 100%;
-      height: 5px;
-      background: rgba(255, 255, 255, 0.3);
-      cursor: pointer;
-      position: relative;
-      margin-bottom: 8px;
-      border-radius: 2px;
-    }
-    .video-progress-container:hover {
-      height: 7px;
-      margin-bottom: 6px;
-    }
-    .video-progress-bar {
-      height: 100%;
-      background: #ff0000;
-      width: 0%;
-      border-radius: 2px;
-      position: relative;
-    }
-    .video-progress-bar::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 12px;
-      height: 12px;
-      background: #ff0000;
-      border-radius: 50%;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    .video-progress-container:hover .video-progress-bar::after {
-      opacity: 1;
-    }
-    
-    /* Control Buttons Row */
-    .controls-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .controls-left,
-    .controls-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    /* Reduce default progress bar width */
+    ${CONFIG.CONTAINER_SELECTOR} .rscpAu-ProgressBar,
+    ${CONFIG.CONTAINER_SELECTOR} [class*="progress"],
+    ${CONFIG.CONTAINER_SELECTOR} [class*="Progress"] {
+      max-width: 60% !important;
+      margin-left: auto !important;
     }
     
     /* Buttons */
     .custom-video-controls button {
-      background: transparent;
+      background: rgba(0, 0, 0, 0.6);
       color: white;
       border: none;
       cursor: pointer;
@@ -143,9 +99,10 @@
       justify-content: center;
       min-width: 36px;
       height: 36px;
+      backdrop-filter: blur(5px);
     }
     .custom-video-controls button:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.2);
     }
     
     /* Skip buttons */
@@ -180,6 +137,8 @@
       font-weight: 500;
       white-space: nowrap;
       user-select: none;
+      padding: 0 4px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
     
     /* Speed Control */
@@ -194,14 +153,15 @@
     .speed-menu {
       position: absolute;
       bottom: 100%;
-      right: 0;
+      left: 0;
       background: rgba(28, 28, 28, 0.95);
       border-radius: 8px;
       padding: 8px 0;
       margin-bottom: 8px;
-      min-width: 60px;
+      min-width: 70px;
       display: none;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      backdrop-filter: blur(10px);
     }
     .speed-menu.show {
       display: block;
@@ -246,32 +206,23 @@
   `;
 
   const CONTROLS_HTML = `
-    <div class="video-progress-container">
-      <div class="video-progress-bar"></div>
-    </div>
-    <div class="controls-row">
-      <div class="controls-left">
-        <button class="skip-btn" data-skip="-10" title="Rewind 10 seconds">
-          <span>10</span>
-        </button>
-        <button class="skip-btn" data-skip="10" title="Forward 10 seconds">
-          <span>10</span>
-        </button>
-        <span class="time-display">0:00 / 0:00</span>
-      </div>
-      <div class="controls-right">
-        <div class="speed-control">
-          <button class="speed-button" title="Playback speed">1x</button>
-          <div class="speed-menu">
-            <div class="speed-option" data-speed="0.5">0.5x</div>
-            <div class="speed-option" data-speed="0.75">0.75x</div>
-            <div class="speed-option active" data-speed="1">Normal</div>
-            <div class="speed-option" data-speed="1.25">1.25x</div>
-            <div class="speed-option" data-speed="1.5">1.5x</div>
-            <div class="speed-option" data-speed="1.75">1.75x</div>
-            <div class="speed-option" data-speed="2">2x</div>
-          </div>
-        </div>
+    <button class="skip-btn" data-skip="-10" title="Rewind 10 seconds">
+      <span>10</span>
+    </button>
+    <button class="skip-btn" data-skip="10" title="Forward 10 seconds">
+      <span>10</span>
+    </button>
+    <span class="time-display">0:00 / 0:00</span>
+    <div class="speed-control">
+      <button class="speed-button" title="Playback speed">1x</button>
+      <div class="speed-menu">
+        <div class="speed-option" data-speed="0.5">0.5x</div>
+        <div class="speed-option" data-speed="0.75">0.75x</div>
+        <div class="speed-option active" data-speed="1">Normal</div>
+        <div class="speed-option" data-speed="1.25">1.25x</div>
+        <div class="speed-option" data-speed="1.5">1.5x</div>
+        <div class="speed-option" data-speed="1.75">1.75x</div>
+        <div class="speed-option" data-speed="2">2x</div>
       </div>
     </div>
   `;
@@ -312,28 +263,17 @@
     controlsContainer.className = CONFIG.CONTROLS_CLASS;
     controlsContainer.innerHTML = CONTROLS_HTML;
 
-    const progressContainer = controlsContainer.querySelector('.video-progress-container');
-    const progressBar = controlsContainer.querySelector('.video-progress-bar');
     const timeDisplay = controlsContainer.querySelector('.time-display');
     const speedButton = controlsContainer.querySelector('.speed-button');
     const speedMenu = controlsContainer.querySelector('.speed-menu');
 
-    // Progress bar update
-    const updateProgress = () => {
-      const progress = (video.currentTime / video.duration) * 100;
-      progressBar.style.width = progress + '%';
+    // Update time display
+    const updateTime = () => {
       timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
     };
 
-    video.addEventListener('timeupdate', updateProgress);
-    video.addEventListener('loadedmetadata', updateProgress);
-
-    // Progress bar seek
-    progressContainer.addEventListener('click', (e) => {
-      const rect = progressContainer.getBoundingClientRect();
-      const pos = (e.clientX - rect.left) / rect.width;
-      video.currentTime = pos * video.duration;
-    });
+    video.addEventListener('timeupdate', updateTime);
+    video.addEventListener('loadedmetadata', updateTime);
 
     // Skip buttons
     const skipButtons = controlsContainer.querySelectorAll('.skip-btn');
@@ -341,6 +281,7 @@
       btn.addEventListener('click', () => {
         const skipAmount = parseFloat(btn.dataset.skip);
         video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + skipAmount));
+        console.log(`Skipped ${skipAmount}s`);
       });
     });
 
@@ -362,6 +303,7 @@
         
         speedButton.textContent = speed === 1 ? '1x' : speed + 'x';
         speedMenu.classList.remove('show');
+        console.log(`Playback speed set to ${speed}x`);
       });
     });
 
@@ -447,7 +389,7 @@
 
     attachEventListeners(video, overlay, customControls);
 
-    console.log('✅ YouTube-style controls added successfully');
+    console.log('✅ Custom controls added successfully');
     return true;
   };
 
