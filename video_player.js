@@ -42,6 +42,7 @@
       const onInnerDomReady = async () => {
         try {
           // Wait for target elements
+          console.log("body content", innerDox.getElementById("mediaContent");
           const mediaContainer = await waitForEl(innerDoc, '#rscpAu-MediaContainer');
           const video = await waitForEl(innerDoc, '#rscpAu-Media');
 
