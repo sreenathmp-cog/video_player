@@ -6,6 +6,7 @@ console.log("player ad script added");
 const outerIframe = document.getElementById('ScormContent');
 outerIframe.addEventListener('load', function() {
     const innerDoc = outerIframe.contentDocument || outerIframe.contentWindow.document;
+    console.log("inner doc", innerD)
     
     // Add styles
     const style = innerDoc.createElement('style');
