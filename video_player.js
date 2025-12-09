@@ -1,12 +1,11 @@
 (function () {
   console.log("Player customization script started");
 
-  const TIMEOUT_MS = 20000; // 20 seconds
+  const TIMEOUT_MS = 30000; // 30 seconds
 
   // Helper: Wait for element using MutationObserver
   const waitForElement = (root, selector, timeout = TIMEOUT_MS) => {
     return new Promise((resolve, reject) => {
-      // Check if element already exists
       const element = root.querySelector(selector);
       if (element) {
         console.log(`✓ ${selector} found immediately`);
@@ -16,11 +15,11 @@
 
       console.log(`Waiting for ${selector}...`);
 
-      const observer = new MutationObserver((mutations, obs) => {
+      const observer = new MutationObserver(() => {
         const found = root.querySelector(selector);
         if (found) {
           console.log(`✓ ${selector} found via mutation`);
-          obs.disconnect();
+          observer.disconnect();
           clearTimeout(timer);
           resolve(found);
         }
@@ -29,99 +28,63 @@
       observer.observe(root, {
         childList: true,
         subtree: true,
-        attributes: true,
-        characterData: true
+        attributes: true
       });
 
       const timer = setTimeout(() => {
         observer.disconnect();
-        console.error(`✗ Timeout waiting for ${selector} in:`, root);
-        console.log('Current HTML:', root.documentElement?.outerHTML || root.innerHTML);
+        console.error(`✗ Timeout waiting for ${selector}`);
         reject(new Error(`Timeout waiting for ${selector}`));
       }, timeout);
     });
   };
 
-  // Main customization logic
-  const addOverlay = async () => {
-    try {
-      console.log("Step 1: Waiting for ScormContent iframe...");
-      
-      // Wait for iframe in parent document
-      const iframe = await waitForElement(document, '#ScormContent', 10000);
-      console.log("✓ Iframe element found");
-
-      // Wait a bit for iframe to start loading
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log("Step 2: Accessing iframe content...");
-      
-      // Function to get iframe document with retries
-      const getIframeDoc = async (retries = 10) => {
-        for (let i = 0; i < retries; i++) {
-          try {
-            const doc = iframe.contentDocument || iframe.contentWindow?.document;
-            if (doc && doc.readyState) {
-              console.log(`✓ Iframe doc accessible (readyState: ${doc.readyState})`);
-              
-              // Wait for body to exist
-              if (!doc.body) {
-                console.log("Waiting for iframe body...");
-                await new Promise(resolve => setTimeout(resolve, 200));
-                continue;
-              }
-              
-              return doc;
-            }
-          } catch (e) {
-            console.warn(`Attempt ${i + 1}: Cannot access iframe doc`, e.message);
-          }
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-        throw new Error('Cannot access iframe document after retries');
-      };
-
-      const innerDoc = await getIframeDoc();
-      console.log("✓ Iframe document ready, body exists");
-      
-      // Log what's in the iframe
-      console.log("Iframe body classes:", innerDoc.body.className);
-      console.log("Iframe body id:", innerDoc.body.id);
-      console.log("Iframe HTML preview:", innerDoc.body.innerHTML.substring(0, 500));
-
-      // Wait for iframe's own scripts to load
-      if (innerDoc.readyState !== 'complete') {
-        console.log("Waiting for iframe DOMContentLoaded...");
-        await new Promise(resolve => {
-          if (innerDoc.readyState === 'complete') {
-            resolve();
-          } else {
-            innerDoc.addEventListener('DOMContentLoaded', resolve, { once: true });
-            // Fallback
-            setTimeout(resolve, 3000);
-          }
-        });
-      }
-
-      console.log("Step 3: Waiting for media elements...");
-      
-      // Try to find elements with more detailed logging
-      const checkElements = () => {
-        const container = innerDoc.querySelector('#rscpAu-MediaContainer');
-        const video = innerDoc.querySelector('#rscpAu-Media');
-        console.log('Container found:', !!container);
-        console.log('Video found:', !!video);
+  // Watch for iframe URL/content changes
+  const watchIframeNavigation = (iframe, callback) => {
+    let lastUrl = '';
+    
+    const checkNavigation = () => {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        const currentUrl = iframe.contentWindow?.location?.href || '';
         
-        // Check for any similar elements
-        const allDivs = innerDoc.querySelectorAll('div[id*="Media"], div[id*="Container"]');
-        const allVideos = innerDoc.querySelectorAll('video');
-        console.log('Divs with Media/Container in id:', allDivs.length, Array.from(allDivs).map(d => d.id));
-        console.log('All video elements:', allVideos.length);
-      };
-      
-      checkElements();
+        if (currentUrl && currentUrl !== lastUrl && currentUrl !== 'about:blank') {
+          console.log('Iframe navigated to:', currentUrl);
+          lastUrl = currentUrl;
+          
+          // Check if this is the actual content page (not placeholder)
+          if (doc && doc.body && !doc.body.innerHTML.includes('Intermediate Content Placeholder')) {
+            console.log('✓ Real content loaded');
+            callback(doc);
+          }
+        }
+      } catch (e) {
+        // Cross-origin or not ready
+      }
+    };
 
+    // Listen for load events
+    iframe.addEventListener('load', checkNavigation);
+    
+    // Also poll for changes (backup)
+    const pollInterval = setInterval(checkNavigation, 500);
+    
+    // Initial check
+    checkNavigation();
+    
+    // Cleanup function
+    return () => {
+      iframe.removeEventListener('load', checkNavigation);
+      clearInterval(pollInterval);
+    };
+  };
+
+  // Main customization logic
+  const addOverlay = async (innerDoc) => {
+    try {
+      console.log("Adding overlay to loaded content...");
+      
+      // Wait for media elements
       const [mediaContainer, video] = await Promise.all([
         waitForElement(innerDoc, '#rscpAu-MediaContainer'),
         waitForElement(innerDoc, '#rscpAu-Media')
@@ -202,12 +165,48 @@
       console.log('✅ Overlay added successfully');
 
     } catch (error) {
-      console.error('❌ Customization failed:', error.message, error);
+      console.error('❌ Customization failed:', error.message);
     }
   };
 
-  // Start customization (runs asynchronously)
-  addOverlay();
+  // Initialize
+  const init = async () => {
+    try {
+      console.log("Waiting for ScormContent iframe...");
+      
+      // Wait for iframe element
+      const iframe = await waitForElement(document, '#ScormContent', 10000);
+      console.log("✓ Iframe element found");
+
+      // Watch for the actual content to load (not placeholder)
+      let cleanupWatcher;
+      const contentLoadedPromise = new Promise((resolve) => {
+        cleanupWatcher = watchIframeNavigation(iframe, (doc) => {
+          resolve(doc);
+        });
+      });
+
+      // Wait for actual content with timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout waiting for actual content')), TIMEOUT_MS);
+      });
+
+      const innerDoc = await Promise.race([contentLoadedPromise, timeoutPromise]);
+      
+      if (cleanupWatcher) cleanupWatcher();
+      
+      console.log("✓ Actual content loaded in iframe");
+      
+      // Add overlay
+      await addOverlay(innerDoc);
+
+    } catch (error) {
+      console.error('❌ Initialization failed:', error.message);
+    }
+  };
+
+  // Start customization
+  init();
 
   // Call completion callback immediately (synchronously)
   if (typeof window.rscpCustomizationCompleted === 'function') {
