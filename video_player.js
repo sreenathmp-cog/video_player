@@ -24,15 +24,6 @@
     });
   };
 
-  const completeCustomization = () => {
-    if (typeof window.rscpCustomizationCompleted === 'function') {
-      window.rscpCustomizationCompleted();
-      console.log('🎬 rscpCustomizationCompleted called');
-    } else {
-      console.warn('rscpCustomizationCompleted not available');
-    }
-  };
-
   const init = async () => {
     try {
       console.log("Waiting for ScormContent iframe...");
@@ -118,18 +109,25 @@
       video.addEventListener('ended', () => overlay.classList.remove('show'));
 
       console.log('✅ Overlay added successfully');
-      completeCustomization();
 
     } catch (err) {
       console.error('❌ Customization failed:', err.message);
-      completeCustomization();
     }
   };
 
-  // Wait for parent DOM to be ready before starting
+  // Start customization work asynchronously (don't block)
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });
   } else {
     init();
+  }
+
+  // Call the completion callback IMMEDIATELY (synchronously)
+  // This allows the player to proceed while customization runs in background
+  if (typeof window.rscpCustomizationCompleted === 'function') {
+    window.rscpCustomizationCompleted();
+    console.log('🎬 rscpCustomizationCompleted called synchronously');
+  } else {
+    console.warn('rscpCustomizationCompleted not available on window');
   }
 })();
