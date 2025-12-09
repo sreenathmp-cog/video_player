@@ -1,99 +1,31 @@
 (function () {
   console.log("Player customization script started");
 
-  const TIMEOUT_MS = 30000; // 30 seconds
+  const TIMEOUT_MS = 30000;
 
-  // Helper: Wait for element using MutationObserver
-  const waitForElement = (root, selector, timeout = TIMEOUT_MS) => {
-    return new Promise((resolve, reject) => {
-      const element = root.querySelector(selector);
-      if (element) {
-        console.log(`✓ ${selector} found immediately`);
-        resolve(element);
-        return;
-      }
+  const setupOverlay = (innerDoc) => {
+    console.log("Setting up overlay...");
 
-      console.log(`Waiting for ${selector}...`);
+    // Check if already added
+    if (innerDoc.querySelector('.video-overlay')) {
+      console.log("Overlay already exists, skipping");
+      return;
+    }
 
-      const observer = new MutationObserver(() => {
-        const found = root.querySelector(selector);
-        if (found) {
-          console.log(`✓ ${selector} found via mutation`);
-          observer.disconnect();
-          clearTimeout(timer);
-          resolve(found);
-        }
-      });
+    const mediaContainer = innerDoc.querySelector('#rscpAu-MediaContainer');
+    const video = innerDoc.querySelector('#rscpAu-Media');
 
-      observer.observe(root, {
-        childList: true,
-        subtree: true,
-        attributes: true
-      });
+    if (!mediaContainer || !video) {
+      console.log("Media elements not found yet");
+      return false;
+    }
 
-      const timer = setTimeout(() => {
-        observer.disconnect();
-        console.error(`✗ Timeout waiting for ${selector}`);
-        reject(new Error(`Timeout waiting for ${selector}`));
-      }, timeout);
-    });
-  };
+    console.log("✓ Media elements found, adding overlay");
 
-  // Watch for iframe URL/content changes
-  const watchIframeNavigation = (iframe, callback) => {
-    let lastUrl = '';
-    
-    const checkNavigation = () => {
-      try {
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        const currentUrl = iframe.contentWindow?.location?.href || '';
-        
-        if (currentUrl && currentUrl !== lastUrl && currentUrl !== 'about:blank') {
-          console.log('Iframe navigated to:', currentUrl);
-          lastUrl = currentUrl;
-          
-          // Check if this is the actual content page (not placeholder)
-          if (doc && doc.body && !doc.body.innerHTML.includes('Intermediate Content Placeholder')) {
-            console.log('✓ Real content loaded');
-            callback(doc);
-          }
-        }
-      } catch (e) {
-        // Cross-origin or not ready
-      }
-    };
-
-    // Listen for load events
-    iframe.addEventListener('load', checkNavigation);
-    
-    // Also poll for changes (backup)
-    const pollInterval = setInterval(checkNavigation, 500);
-    
-    // Initial check
-    checkNavigation();
-    
-    // Cleanup function
-    return () => {
-      iframe.removeEventListener('load', checkNavigation);
-      clearInterval(pollInterval);
-    };
-  };
-
-  // Main customization logic
-  const addOverlay = async (innerDoc) => {
-    try {
-      console.log("Adding overlay to loaded content...");
-      
-      // Wait for media elements
-      const [mediaContainer, video] = await Promise.all([
-        waitForElement(innerDoc, '#rscpAu-MediaContainer'),
-        waitForElement(innerDoc, '#rscpAu-Media')
-      ]);
-      
-      console.log("✓ Media elements found");
-
-      // Add styles
+    // Add styles
+    if (!innerDoc.querySelector('#video-overlay-styles')) {
       const style = innerDoc.createElement('style');
+      style.id = 'video-overlay-styles';
       style.textContent = `
         .video-overlay {
           position: absolute;
@@ -139,80 +71,118 @@
         }
       `;
       innerDoc.head.appendChild(style);
+    }
 
-      // Create and insert overlay
-      const overlay = innerDoc.createElement('div');
-      overlay.className = 'video-overlay';
-      overlay.innerHTML = `
-        <div class="overlay-content">
-          <div class="overlay-title">10MB-MP4.mp4</div>
-          <div class="overlay-description">
-            Learn about this video content. This is where you can add 
-            detailed information about what viewers will learn and 
-            key takeaways from this lesson.
-          </div>
+    // Create and insert overlay
+    const overlay = innerDoc.createElement('div');
+    overlay.className = 'video-overlay';
+    overlay.innerHTML = `
+      <div class="overlay-content">
+        <div class="overlay-title">10MB-MP4.mp4</div>
+        <div class="overlay-description">
+          Learn about this video content. This is where you can add 
+          detailed information about what viewers will learn and 
+          key takeaways from this lesson.
         </div>
-      `;
-      
-      mediaContainer.style.position = 'relative';
-      mediaContainer.appendChild(overlay);
+      </div>
+    `;
+    
+    mediaContainer.style.position = 'relative';
+    mediaContainer.appendChild(overlay);
 
-      // Wire event listeners
-      video.addEventListener('pause', () => overlay.classList.add('show'));
-      video.addEventListener('play', () => overlay.classList.remove('show'));
-      video.addEventListener('ended', () => overlay.classList.remove('show'));
+    // Wire event listeners
+    video.addEventListener('pause', () => overlay.classList.add('show'));
+    video.addEventListener('play', () => overlay.classList.remove('show'));
+    video.addEventListener('ended', () => overlay.classList.remove('show'));
 
-      console.log('✅ Overlay added successfully');
-
-    } catch (error) {
-      console.error('❌ Customization failed:', error.message);
-    }
+    console.log('✅ Overlay added successfully');
+    return true;
   };
 
-  // Initialize
-  const init = async () => {
-    try {
-      console.log("Waiting for ScormContent iframe...");
-      
-      // Wait for iframe element
-      const iframe = await waitForElement(document, '#ScormContent', 10000);
-      console.log("✓ Iframe element found");
+  const watchIframe = (iframe) => {
+    let observer = null;
+    let loadHandler = null;
+    let pollInterval = null;
+    let timeoutTimer = null;
 
-      // Watch for the actual content to load (not placeholder)
-      let cleanupWatcher;
-      const contentLoadedPromise = new Promise((resolve) => {
-        cleanupWatcher = watchIframeNavigation(iframe, (doc) => {
-          resolve(doc);
-        });
-      });
+    const trySetup = () => {
+      try {
+        const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (!innerDoc || !innerDoc.body) return;
 
-      // Wait for actual content with timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout waiting for actual content')), TIMEOUT_MS);
-      });
+        console.log("Iframe document accessible, body HTML:", innerDoc.body.innerHTML.substring(0, 200));
 
-      const innerDoc = await Promise.race([contentLoadedPromise, timeoutPromise]);
-      
-      if (cleanupWatcher) cleanupWatcher();
-      
-      console.log("✓ Actual content loaded in iframe");
-      
-      // Add overlay
-      await addOverlay(innerDoc);
+        if (setupOverlay(innerDoc)) {
+          cleanup();
+        }
+      } catch (e) {
+        console.log("Cannot access iframe yet:", e.message);
+      }
+    };
 
-    } catch (error) {
-      console.error('❌ Initialization failed:', error.message);
-    }
+    const cleanup = () => {
+      if (observer) observer.disconnect();
+      if (loadHandler) iframe.removeEventListener('load', loadHandler);
+      if (pollInterval) clearInterval(pollInterval);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      console.log("✓ Watchers cleaned up");
+    };
+
+    // Watch for load events
+    loadHandler = () => {
+      console.log("Iframe load event fired");
+      trySetup();
+    };
+    iframe.addEventListener('load', loadHandler);
+
+    // Poll periodically
+    pollInterval = setInterval(trySetup, 500);
+
+    // Try immediately
+    trySetup();
+
+    // Timeout
+    timeoutTimer = setTimeout(() => {
+      console.error("⏱️ Timeout reached, giving up");
+      cleanup();
+    }, TIMEOUT_MS);
   };
 
-  // Start customization
-  init();
+  // Wait for iframe element in parent DOM
+  const waitForIframe = () => {
+    const iframe = document.querySelector('#ScormContent');
+    if (iframe) {
+      console.log("✓ Iframe found immediately");
+      watchIframe(iframe);
+      return;
+    }
 
-  // Call completion callback immediately (synchronously)
+    console.log("Waiting for iframe element...");
+    const observer = new MutationObserver(() => {
+      const found = document.querySelector('#ScormContent');
+      if (found) {
+        console.log("✓ Iframe found via mutation");
+        observer.disconnect();
+        watchIframe(found);
+      }
+    });
+
+    observer.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  };
+
+  // Start
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', waitForIframe);
+  } else {
+    waitForIframe();
+  }
+
+  // Call completion callback immediately
   if (typeof window.rscpCustomizationCompleted === 'function') {
     window.rscpCustomizationCompleted();
     console.log('🎬 rscpCustomizationCompleted called');
-  } else {
-    console.warn('⚠️ rscpCustomizationCompleted not available');
   }
 })();
