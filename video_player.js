@@ -1,16 +1,5 @@
 (function () {
-  console.log("player ad script added");
-
-  const outerIframe = document.getElementById('ScormContent');
-  if (!outerIframe) {
-    console.error('❌ ScormContent iframe not found');
-    completeCustomization();
-    return;
-  }
-
-  // Configurable timeouts
   const IFRAME_LOAD_TIMEOUT_MS = 10000;
-  const INNER_DOM_READY_TIMEOUT_MS = 8000;
   const ELEMENT_WAIT_TIMEOUT_MS = 15000;
 
   const waitForEl = (doc, selector, timeoutMs = ELEMENT_WAIT_TIMEOUT_MS) => {
@@ -22,56 +11,67 @@
         const found = doc.querySelector(selector);
         if (found) {
           obs.disconnect();
+          clearTimeout(timer);
           resolve(found);
         }
       });
       obs.observe(doc, { childList: true, subtree: true });
 
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         obs.disconnect();
-        reject(new Error(`Timeout waiting for ${selector} after ${timeoutMs}ms`));
+        reject(new Error(`Timeout waiting for ${selector}`));
       }, timeoutMs);
     });
   };
 
-  const waitForInnerDomReady = (doc, timeoutMs = INNER_DOM_READY_TIMEOUT_MS) => {
-    return new Promise((resolve, reject) => {
-      if (doc.readyState === 'complete' || doc.readyState === 'interactive') {
-        resolve();
-        return;
-      }
-      const onReady = () => resolve();
-      doc.addEventListener('DOMContentLoaded', onReady, { once: true });
-
-      setTimeout(() => {
-        doc.removeEventListener('DOMContentLoaded', onReady);
-        reject(new Error(`Timeout waiting for inner DOMContentLoaded after ${timeoutMs}ms`));
-      }, timeoutMs);
-    });
-  };
-
-  function completeCustomization() {
+  const completeCustomization = () => {
     if (typeof window.rscpCustomizationCompleted === 'function') {
       window.rscpCustomizationCompleted();
+      console.log('🎬 rscpCustomizationCompleted called');
     } else {
-      console.warn('rscpCustomizationCompleted not available on window.');
+      console.warn('rscpCustomizationCompleted not available');
     }
-  }
+  };
 
   const init = async () => {
     try {
-      const innerDoc = outerIframe.contentDocument || outerIframe.contentWindow.document;
-      if (!innerDoc) {
-        console.error('❌ Unable to access iframe document');
-        completeCustomization();
-        return;
+      console.log("Waiting for ScormContent iframe...");
+      
+      // Wait for the iframe element itself to exist in parent DOM
+      const outerIframe = await waitForEl(document, '#ScormContent', 10000);
+      console.log("✓ Iframe element found:", outerIframe);
+
+      // Wait for iframe to load
+      if (!outerIframe.contentDocument || outerIframe.contentDocument.readyState === 'loading') {
+        await new Promise((resolve, reject) => {
+          const onLoad = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          outerIframe.addEventListener('load', onLoad, { once: true });
+          
+          const timer = setTimeout(() => {
+            outerIframe.removeEventListener('load', onLoad);
+            console.warn('Iframe load timeout, proceeding anyway');
+            resolve();
+          }, IFRAME_LOAD_TIMEOUT_MS);
+        });
       }
 
-      await waitForInnerDomReady(innerDoc, INNER_DOM_READY_TIMEOUT_MS);
+      const innerDoc = outerIframe.contentDocument || outerIframe.contentWindow.document;
+      console.log("✓ Inner document accessible:", innerDoc.readyState);
 
-      const mediaContainer = await waitForEl(innerDoc, '#rscpAu-MediaContainer', ELEMENT_WAIT_TIMEOUT_MS);
-      const video = await waitForEl(innerDoc, '#rscpAu-Media', ELEMENT_WAIT_TIMEOUT_MS);
+      // Wait for inner DOM to be ready
+      if (innerDoc.readyState === 'loading') {
+        await new Promise(res => innerDoc.addEventListener('DOMContentLoaded', res, { once: true }));
+      }
 
+      console.log("Waiting for media elements...");
+      const mediaContainer = await waitForEl(innerDoc, '#rscpAu-MediaContainer');
+      const video = await waitForEl(innerDoc, '#rscpAu-Media');
+      console.log("✓ Media elements found");
+
+      // Add styles
       const style = innerDoc.createElement('style');
       style.textContent = `
         .video-overlay {
@@ -96,6 +96,7 @@
       `;
       innerDoc.head.appendChild(style);
 
+      // Create overlay
       const overlay = innerDoc.createElement('div');
       overlay.className = 'video-overlay';
       overlay.innerHTML = `
@@ -108,6 +109,7 @@
           </div>
         </div>
       `;
+      
       mediaContainer.style.position = 'relative';
       mediaContainer.appendChild(overlay);
 
@@ -116,28 +118,18 @@
       video.addEventListener('ended', () => overlay.classList.remove('show'));
 
       console.log('✅ Overlay added successfully');
+      completeCustomization();
+
     } catch (err) {
-      console.error('❌ Customization timed out or failed:', err.message);
-    } finally {
-      // Call after async work completes
+      console.error('❌ Customization failed:', err.message);
       completeCustomization();
     }
   };
 
-  // Wait for iframe load with timeout
-  if (outerIframe.contentDocument && outerIframe.contentDocument.readyState !== 'loading') {
-    init();
+  // Wait for parent DOM to be ready before starting
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
   } else {
-    const onLoad = () => {
-      clearTimeout(loadTimer);
-      init();
-    };
-    outerIframe.addEventListener('load', onLoad, { once: true });
-
-    const loadTimer = setTimeout(() => {
-      outerIframe.removeEventListener('load', onLoad);
-      console.warn(`⚠️ Iframe load timed out after ${IFRAME_LOAD_TIMEOUT_MS}ms; proceeding anyway`);
-      init();
-    }, IFRAME_LOAD_TIMEOUT_MS);
+    init();
   }
 })();
