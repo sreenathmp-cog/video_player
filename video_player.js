@@ -18,10 +18,9 @@
     .video-overlay {
       position: absolute;
       top: 30%;
-      left: 15%;
-      width: fit-content;
+      left: 12%;
+      width: 380px;
       height: fit-content;
-      background: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 70%, transparent 100%);
       display: none;
       justify-content: flex-start;
       align-items: center;
@@ -44,14 +43,14 @@
       max-width: 500px; 
     }
     .overlay-title { 
-      font-size: 28px; 
+      font-size: 20px; 
       font-weight: bold; 
       margin-bottom: 16px; 
       font-family: Arial, sans-serif; 
       text-shadow: 2px 2px 4px rgba(0,0,0,0.8); 
     }
     .overlay-description { 
-      font-size: 16px; 
+      font-size: 14px; 
       line-height: 1.5; 
       font-family: Arial, sans-serif; 
       text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
