@@ -282,7 +282,7 @@
 
   const OVERLAY_HTML = `
     <div class="overlay-content">
-      <div class="overlay-title">10MB-MP4.mp4</div>
+      <div class="overlay-title">People on roads</div>
       <div class="overlay-description">
         Learn about this video content. This is where you can add 
         detailed information about what viewers will learn and 
