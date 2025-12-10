@@ -17,10 +17,10 @@
   const STYLES = `
     .video-overlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 50%;
-      height: calc(100% - 60px);
+      top: 30%;
+      left: 15%;
+      width: fit-content;
+      height: fit-content;
       background: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 70%, transparent 100%);
       display: none;
       justify-content: flex-start;
