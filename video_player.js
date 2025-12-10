@@ -19,7 +19,7 @@
       position: absolute;
       top: 30%;
       left: 12%;
-      width: 380px;
+      width: 300px;
       height: fit-content;
       display: none;
       justify-content: flex-start;
@@ -39,8 +39,7 @@
     .overlay-content { 
       text-align: left; 
       color: white; 
-      padding: 40px; 
-      max-width: 500px; 
+      max-width: 300px; 
     }
     .overlay-title { 
       font-size: 20px; 
