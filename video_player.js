@@ -846,7 +846,7 @@
         
         const button = doc.createElement('button');
         button.className = 'next-lesson-button';
-        button.textContent = {`Next: ${lessonSequenceData?.nextLesson}`} || "Next Lesson"};
+        button.textContent = {`Next: ${lessonSequenceData?.nextLesson}`} || "Next Lesson";
         button.setAttribute('aria-label', `Go to next lesson: ${lessonSequenceData?.nextLesson}`);
         button.setAttribute('tabindex', '0');
         
