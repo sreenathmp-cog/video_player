@@ -1210,13 +1210,12 @@
         const settingsBtn = controlsContainer.querySelector('.settings-btn');
         settingsBtn.addEventListener('click', () => {
             announceToScreenReader('Settings menu - Feature coming soon');
-            alert('Settings menu - To be implemented');
         });
 
         const transcriptBtn = controlsContainer.querySelector('.transcript-btn');
         transcriptBtn.addEventListener('click', () => {
             announceToScreenReader('Transcript panel - Feature coming soon');
-            alert('Transcript panel - To be implemented');
+             sendMessageToParent('ENABLE_TRANSCRIPTIONS',{});
         });
 
         doc.addEventListener('click', () => {
