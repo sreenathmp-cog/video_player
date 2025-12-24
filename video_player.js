@@ -726,6 +726,29 @@
                     }
 
                     break;
+            case 'SEEK_TO_TIMELINE':
+                console.log('⏩ Seeking to timeline:', data);
+                if (data && typeof data.seekPoint === 'number') {
+                    const iframe = document.querySelector(CONFIG.IFRAME_SELECTOR);
+                    if (iframe) {
+                        const innerDoc = getIframeDocument(iframe);
+                        if (innerDoc) {
+                            const media = findMediaElement(innerDoc);
+                            if (media) {
+                                media.currentTime = data.seekPoint;
+                                if (media.paused) {
+                                    media.play().catch(err => {
+                                        console.warn('Could not auto-play after seek:', err);
+                                    });
+                                }
+                                console.log(`✅ Seeked to ${data.seekPoint} seconds`);
+                            } else {
+                                console.warn('Media element not found for seeking');
+                            }
+                        }
+                    }
+                }
+                break;    
                 default:
                     console.log('Unknown message type:', type);
             }
