@@ -604,26 +604,19 @@
       }
     }
     .next-lesson-button {
-      background: rgba(62, 166, 255, 0.95);
-      color: #FFFFFF;
+      background: #D9D9D9;
+      color: #393535;
       border: none;
       padding: 0.75rem 1.5rem;
       border-radius: 8px;
       font-family: 'GellixSemiBold', Arial, sans-serif;
       font-size: 1rem;
-      font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       transition: all 0.2s ease;
       display: flex;
       align-items: center;
       gap: 0.5rem;
       white-space: nowrap;
-    }
-    .next-lesson-button:hover {
-      background: rgba(62, 166, 255, 1);
-      transform: scale(1.05);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
     }
     .next-lesson-button:active {
       transform: scale(0.98);
@@ -853,7 +846,7 @@
         
         const button = doc.createElement('button');
         button.className = 'next-lesson-button';
-        button.textContent = lessonSequenceData?.nextLesson || "Next Lesson";
+        button.textContent = {`Next: ${lessonSequenceData?.nextLesson}`} || "Next Lesson";
         button.setAttribute('aria-label', `Go to next lesson: ${lessonSequenceData?.nextLesson}`);
         button.setAttribute('tabindex', '0');
         
