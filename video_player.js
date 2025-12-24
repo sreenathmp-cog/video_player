@@ -172,6 +172,9 @@
       left: -9999px !important;
       pointer-events: none !important;
     }
+    #ScormContent body {
+       background-color: #000 !important;
+    }
     
     /* Container - Full Width */
     ${CONFIG.CONTAINER_SELECTOR} {
@@ -986,10 +989,10 @@
             const leftPercentOfContainer = (leftOffset / containerWidth) * 100;
             const bottomPercentOfContainer = (bottomOffset / containerHeight) * 100;
             const widthPercentOfContainer = (actualVideoWidth / containerWidth) * 100;
-            controlsContainer.style.left = `${leftPercentOfContainer}%`;
-            controlsContainer.style.bottom = `${bottomPercentOfContainer}%`;
-            controlsContainer.style.width = `${widthPercentOfContainer}%`;
-            controlsContainer.style.right = 'auto';
+            controlsContainer.style.left = 0;
+            controlsContainer.style.bottom = 0;
+            controlsContainer.style.width = "100%";
+            controlsContainer.style.right = 0;
         };
 
         media.addEventListener('loadedmetadata', adjustControlsPosition);
