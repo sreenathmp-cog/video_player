@@ -172,9 +172,6 @@
       left: -9999px !important;
       pointer-events: none !important;
     }
-    #mediaContent {
-       background-color: #000 !important;
-    }
     #rscpAu-ToolbarTitle {
       display: none;
     }
@@ -1471,7 +1468,10 @@
         }
 
         isPlayerInitialized = true;
-
+         const mediaContent = innerDoc.getElementById('mediaContent');
+    if (mediaContent) {
+        mediaContent.style.backgroundColor = IS_AUDIO ? '#f3f5f9' : '#000';
+    }
         if (!IS_AUDIO) {
             // Remove any existing styles/controls first
             const existingStyle = innerDoc.getElementById(CONFIG.STYLE_ID);
