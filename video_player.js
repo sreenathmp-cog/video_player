@@ -726,30 +726,7 @@
                     }
 
                     break;
-            case 'SEEK_TO_TIMELINE':
-                console.log('⏩ Seeking to timeline:', data);
-                if (data && typeof data.seekPoint === 'number') {
-                    const iframe = document.querySelector(CONFIG.IFRAME_SELECTOR);
-                    if (iframe) {
-                        const innerDoc = getIframeDocument(iframe);
-                        if (innerDoc) {
-                            const media = findMediaElement(innerDoc);
-                            if (media) {
-                                media.currentTime = data.seekPoint;
-                                if (media.paused) {
-                                    media.play().catch(err => {
-                                        console.warn('Could not auto-play after seek:', err);
-                                    });
-                                }
-                                console.log(`✅ Seeked to ${data.seekPoint} seconds`);
-                            } else {
-                                console.warn('Media element not found for seeking');
-                            }
-                        }
-                    }
-                }
-                break;
-         case 'SEEK_TO_TIMELINE':
+           case 'SEEK_TO_TIMELINE':
     console.log('⏩ Seeking to timeline:', data);
     if (data && typeof data.seekPoint === 'number') {
         const iframe = document.querySelector(CONFIG.IFRAME_SELECTOR);
@@ -777,7 +754,8 @@
             }
         }
     }
-    break;           
+    break;
+                    
                 default:
                     console.log('Unknown message type:', type);
             }
@@ -985,6 +963,7 @@
     }
 
     const createCustomControls = (doc, media) => {
+        let timeUpdateInterval = null;
         const controlsContainer = doc.createElement('div');
         controlsContainer.className = CONFIG.CONTROLS_CLASS;
         controlsContainer.innerHTML = getControlsHtml();
@@ -1075,15 +1054,35 @@
             playPauseBtn.innerHTML = createIconElement('pause');
             playPauseBtn.dataset.state = 'pause';
             playPauseBtn.setAttribute('aria-label', IS_AUDIO ? 'Pause audio' : 'Pause video');
+            timeUpdateInterval = setInterval(() => {
+        sendMessageToParent('PLAYBACK_TIME_UPDATE', {
+            currentTime: media.currentTime,
+            duration: media.duration
+        });
+    }, 500);
         });
         media.addEventListener('pause', () => {
             playPauseBtn.innerHTML = createIconElement('play');
             playPauseBtn.dataset.state = 'play';
             playPauseBtn.setAttribute('aria-label', IS_AUDIO ? 'Play audio' : 'Play video');
+            if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+        timeUpdateInterval = null;
+    }
         });
         media.addEventListener('ended', () => {
             announceToScreenReader(IS_AUDIO ? 'Audio ended' : 'Video ended');
+             if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+        timeUpdateInterval = null;
+    }
         });
+        media.addEventListener('seeked', () => {
+    sendMessageToParent('PLAYBACK_TIME_UPDATE', {
+        currentTime: media.currentTime,
+        duration: media.duration
+    });
+});
 
         // Progress
         const updateProgress = () => {
