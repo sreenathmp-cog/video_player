@@ -172,8 +172,11 @@
       left: -9999px !important;
       pointer-events: none !important;
     }
-    #ScormContent body {
+    #mediaContent {
        background-color: #000 !important;
+    }
+    #rscpAu-ToolbarTitle {
+      display: none;
     }
     
     /* Container - Full Width */
